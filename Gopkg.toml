@@ -58,3 +58,7 @@ required = [
 [[override]]
   name = "github.com/golang/protobuf"
   version = "1.3.0"
+
+[[constraint]]
+  name = "nhooyr.io/websocket"
+  version = "1.8.6"
