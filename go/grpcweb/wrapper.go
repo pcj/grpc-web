@@ -187,11 +187,11 @@ func (w *WrappedGrpcServer) HandleGrpcWebsocketRequest(resp http.ResponseWriter,
 		return
 	}
 
-	respWriter := newWebSocketResponseWriter(wsConn, ctx)
+	respWriter := newWebSocketResponseWriter(ctx, wsConn)
 	if w.opts.websocketPingInterval >= time.Second {
 		respWriter.enablePing(w.opts.websocketPingInterval)
 	}
-	wrappedReader := newWebsocketWrappedReader(wsConn, respWriter, ctx, cancelFunc)
+	wrappedReader := newWebsocketWrappedReader(ctx, wsConn, respWriter, cancelFunc)
 
 	for name, values := range wsHeaders {
 		headers[name] = values

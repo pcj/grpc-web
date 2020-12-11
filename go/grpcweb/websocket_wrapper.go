@@ -27,7 +27,7 @@ type webSocketResponseWriter struct {
 	context         context.Context
 }
 
-func newWebSocketResponseWriter(wsConn *websocket.Conn, ctx context.Context) *webSocketResponseWriter {
+func newWebSocketResponseWriter(ctx context.Context, wsConn *websocket.Conn) *webSocketResponseWriter {
 	return &webSocketResponseWriter{
 		writtenHeaders: false,
 		headers:        make(http.Header),
@@ -206,7 +206,7 @@ func (w *webSocketWrappedReader) Read(p []byte) (int, error) {
 	return len(p), nil
 }
 
-func newWebsocketWrappedReader(wsConn *websocket.Conn, respWriter *webSocketResponseWriter, ctx context.Context, cancel context.CancelFunc) *webSocketWrappedReader {
+func newWebsocketWrappedReader(ctx context.Context, wsConn *websocket.Conn, respWriter *webSocketResponseWriter, cancel context.CancelFunc) *webSocketWrappedReader {
 	return &webSocketWrappedReader{
 		wsConn:          wsConn,
 		respWriter:      respWriter,
