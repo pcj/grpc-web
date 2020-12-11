@@ -27,7 +27,7 @@ const grpcWebTextContentType = "application/grpc-web-text"
 
 type WrappedGrpcServer struct {
 	handler             http.Handler
-	websocketHandler    http.Handler
+	websocketHandler    http.Handler // nil if enableWebsockets is false
 	opts                *options
 	corsWrapper         *cors.Cors
 	originFunc          func(origin string) bool
@@ -95,15 +95,16 @@ func wrapGrpc(options []Option, handler http.Handler, endpointsFunc func() []str
 	}
 
 	return &WrappedGrpcServer{
-		handler:          handler,
-		websocketHandler: websocketHandler,
-		opts:             opts,
-		corsWrapper:      corsWrapper,
-		originFunc:       opts.originFunc,
-		enableWebsockets: opts.enableWebsockets,
-		allowedHeaders:   allowedHeaders,
-		endpointFunc:     endpointFunc,
-		endpointsFunc:    endpointsFunc,
+		handler:             handler,
+		websocketHandler:    websocketHandler,
+		opts:                opts,
+		corsWrapper:         corsWrapper,
+		originFunc:          opts.originFunc,
+		enableWebsockets:    opts.enableWebsockets,
+		websocketOriginFunc: websocketOriginFunc,
+		allowedHeaders:      allowedHeaders,
+		endpointFunc:        endpointFunc,
+		endpointsFunc:       endpointsFunc,
 	}
 }
 
@@ -131,6 +132,9 @@ func (w *WrappedGrpcServer) ServeHTTP(resp http.ResponseWriter, req *http.Reques
 		w.corsWrapper.Handler(http.HandlerFunc(w.HandleGrpcWebRequest)).ServeHTTP(resp, req)
 		return
 	}
+
+	// panic("websocket ServeHTTP!")
+
 	w.handler.ServeHTTP(resp, req)
 }
 

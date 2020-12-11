@@ -1,5 +1,7 @@
 package grpcweb
 
+import "google.golang.org/grpc/grpclog"
+
 // websocketClientHub maintains the set of active clients and broadcasts
 // messages to the clients.  It is based on
 // https://github.com/gorilla/websocket/blob/master/examples/chat/hub.go
@@ -34,6 +36,7 @@ func (h *websocketClientHub) run() {
 		case client := <-h.unregister:
 			if _, ok := h.clients[client]; ok {
 				delete(h.clients, client)
+				grpclog.Infof("client hub closing client %v", client)
 				close(client.send)
 			}
 		case message := <-h.broadcast:

@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/gorilla/websocket"
+	"google.golang.org/grpc/grpclog"
 )
 
 const (
@@ -40,6 +41,7 @@ type websocketClient struct {
 // ensures that there is at most one reader on a connection by executing all
 // reads from this goroutine.
 func (c *websocketClient) readPump() {
+	// refactor this to close the connection when
 	defer func() {
 		c.hub.unregister <- c
 		c.conn.Close()
@@ -50,13 +52,16 @@ func (c *websocketClient) readPump() {
 	for {
 		_, message, err := c.conn.ReadMessage()
 		if err != nil {
+			// TODO: should this include unexpected EOF?
 			if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway, websocket.CloseAbnormalClosure) {
 				log.Printf("error: %v", err)
 			}
+			log.Printf("expected close of readPump: %v", err)
 			break
 		}
 		c.hub.broadcast <- message
 	}
+	grpclog.Infof("readPump expired! %v", c)
 }
 
 // writePump pumps messages from the hub to the websocket connection.

@@ -6,6 +6,7 @@ import (
 	"io"
 
 	"github.com/gorilla/websocket"
+	"google.golang.org/grpc/grpclog"
 )
 
 type webSocketWrappedReader struct {
@@ -29,6 +30,7 @@ func newWebsocketWrappedReader(wsConn *websocket.Conn, respWriter *webSocketResp
 // Close implements the https://golang.org/pkg/io/#Closer interface.  It flushes
 // any remaining trailers and signals to close the websocket connection.
 func (w *webSocketWrappedReader) Close() error {
+	grpclog.Infof("webSocketWrappedReader.Close()")
 	w.respWriter.flushTrailers()
 	return w.wsConn.Close()
 }
@@ -37,6 +39,8 @@ func (w *webSocketWrappedReader) Close() error {
 // byte of a binary WebSocket frame is used for control flow: 0 = Data, 1 = End
 // of client send
 func (w *webSocketWrappedReader) Read(p []byte) (int, error) {
+	grpclog.Infof("webSocketWrappedReader.Read(%q) %v", string(p), p)
+
 	// If a buffer remains from a previous WebSocket frame read then continue reading it
 	if w.remainingBuffer != nil {
 
@@ -72,6 +76,8 @@ func (w *webSocketWrappedReader) Read(p []byte) (int, error) {
 		return 0, io.EOF
 	}
 
+	grpclog.Infof("webSocketWrappedReader.Read framePayload(%q) %v", string(framePayload), framePayload)
+
 	// Only Binary frames are valid
 	if messageType != websocket.BinaryMessage {
 		return 0, errors.New("websocket frame was not a binary frame")
@@ -79,6 +85,7 @@ func (w *webSocketWrappedReader) Read(p []byte) (int, error) {
 
 	// If the frame consists of only a single byte of value 1 then this indicates the client has finished sending
 	if len(framePayload) == 1 && framePayload[0] == 1 {
+		grpclog.Infof("webSocketWrappedReader.Read: Sending EOF")
 		return 0, io.EOF
 	}
 

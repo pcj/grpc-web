@@ -6,28 +6,26 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/gorilla/websocket"
 	"golang.org/x/net/http2"
+	"google.golang.org/grpc/grpclog"
 )
 
-// webSocketResponseWriter acts as a http.ResponseWriter.  It accepts bytes
-// written to the response and propagates them to the websocket.  If ping is
-// enabled, this also sends pings according to the timoutOutInterval when.
+// webSocketResponseWriter acts as an http.ResponseWriter.  It accepts bytes
+// written to the response and propagates them to the websocket via the
+// websocket client.
 type webSocketResponseWriter struct {
+	client         *websocketClient
 	writtenHeaders bool
-	wsConn         *websocket.Conn
 	headers        http.Header
 	flushedHeaders http.Header
-	client         *websocketClient
 }
 
-func newWebSocketResponseWriter(wsConn *websocket.Conn, client *websocketClient) *webSocketResponseWriter {
+func newWebSocketResponseWriter(client *websocketClient) *webSocketResponseWriter {
 	return &webSocketResponseWriter{
+		client:         client,
 		writtenHeaders: false,
 		headers:        make(http.Header),
 		flushedHeaders: make(http.Header),
-		wsConn:         wsConn,
-		client:         client,
 	}
 }
 
@@ -56,6 +54,14 @@ func (w *webSocketResponseWriter) WriteHeader(code int) {
 }
 
 func (w *webSocketResponseWriter) writeHeaderFrame(headers http.Header) {
+	grpclog.Infof("writeHeaderFrame")
+
+	w.writeMessage(EncodeHeaderFrame(headers))
+}
+
+func (w *webSocketResponseWriter) writeHeaderFrameOld(headers http.Header) {
+	grpclog.Infof("writeHeaderFrame")
+
 	headerBuffer := new(bytes.Buffer)
 	headers.Write(headerBuffer)
 	headerGrpcDataHeader := []byte{1 << 7, 0, 0, 0, 0} // MSB=1 indicates this is a header data frame.
@@ -86,9 +92,10 @@ func (w *webSocketResponseWriter) extractTrailerHeaders() http.Header {
 	return th
 }
 
-func (w *webSocketResponseWriter) writeMessage(b []byte) error {
-	w.client.send <- b
-	return nil // TODO(pcj): is there a need to propagate write errors?
+func (w *webSocketResponseWriter) writeMessage(data []byte) error {
+	grpclog.Infof("writeMessage %q: %v", string(data), data)
+	w.client.send <- data
+	return nil // TODO(pcj): is there a need to propagate write errors?  Only the client knows about them.
 }
 
 func (w *webSocketResponseWriter) flushTrailers() {
@@ -98,4 +105,18 @@ func (w *webSocketResponseWriter) flushTrailers() {
 // Flush implements the https://golang.org/pkg/net/http/#Flusher interface.
 func (w *webSocketResponseWriter) Flush() {
 	// no-op
+}
+
+// EncodeHeaderFrame prepares a byte array consisting of the "data header" and
+// the header itself as ascii bytes.
+func EncodeHeaderFrame(headers http.Header) []byte {
+	buf := new(bytes.Buffer)
+	headers.Write(buf)
+	headerGrpcDataHeader := []byte{1 << 7, 0, 0, 0, 0} // MSB=1 indicates this is a header data frame.
+	binary.BigEndian.PutUint32(headerGrpcDataHeader[1:5], uint32(buf.Len()))
+	buf.Grow(len(headerGrpcDataHeader))
+	buf.Reset()
+	buf.Write(headerGrpcDataHeader)
+	headers.Write(buf)
+	return buf.Bytes()
 }
