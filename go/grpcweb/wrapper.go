@@ -27,6 +27,7 @@ var (
 const grpcContentType = "application/grpc"
 const grpcWebContentType = "application/grpc-web"
 const grpcWebTextContentType = "application/grpc-web-text"
+const secWebsocketProtocol = "grpc-websockets"
 
 type WrappedGrpcServer struct {
 	handler             http.Handler
@@ -133,7 +134,7 @@ func (w *WrappedGrpcServer) ServeHTTP(resp http.ResponseWriter, req *http.Reques
 // IsGrpcWebSocketRequest determines if a request is a gRPC-Web request by checking that the "Sec-Websocket-Protocol"
 // header value is "grpc-websockets"
 func (w *WrappedGrpcServer) IsGrpcWebSocketRequest(req *http.Request) bool {
-	return strings.ToLower(req.Header.Get("Upgrade")) == "websocket" && strings.ToLower(req.Header.Get("Sec-Websocket-Protocol")) == "grpc-websockets"
+	return strings.ToLower(req.Header.Get("Upgrade")) == "websocket" && strings.ToLower(req.Header.Get("Sec-Websocket-Protocol")) == secWebsocketProtocol
 }
 
 // HandleGrpcWebRequest takes a HTTP request that is assumed to be a gRPC-Web request and wraps it with a compatibility
@@ -154,7 +155,7 @@ func (w *WrappedGrpcServer) HandleGrpcWebsocketRequest(resp http.ResponseWriter,
 
 	wsConn, err := websocket.Accept(resp, req, &websocket.AcceptOptions{
 		InsecureSkipVerify: true, // managed by ServeHTTP
-		Subprotocols:       []string{"grpc-websockets"},
+		Subprotocols:       []string{secWebsocketProtocol},
 	})
 	if err != nil {
 		grpclog.Errorf("Unable to upgrade websocket request: %v", err)
